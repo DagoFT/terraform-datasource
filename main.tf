@@ -18,7 +18,7 @@ data "aws_ami" "amazon_linux" {
 }
 
 resource "aws_security_group" "web_sg" {
-  name        = "${var.environment}-web-sg"
+  name        = "${var.environment}-web-sg-2"
   description = "Allow SSH, HTTP, HTTPS"
   vpc_id      = data.aws_vpc.selected.id
 
@@ -51,7 +51,7 @@ resource "aws_security_group" "web_sg" {
   }
 
   tags = {
-    Name = "${var.environment}-web-sg"
+    Name = "${var.environment}-web-sg-2"
   }
 }
 
