@@ -1,20 +1,11 @@
-# 1. Obtener la VPC existente por nombre (no hardcodear IDs)
 data "aws_vpc" "selected" {
-  filter {
-    name   = "tag:Name"
-    values = ["main-vpc"]
-  }
+  id = "vpc-0cfbad9b2748e971f"
 }
 
-# 2. Obtener subnets de esa VPC (lista de IDs) - USANDO aws_subnets
-data "aws_subnets" "selected" {
-  filter {
-    name   = "vpc-id"
-    values = [data.aws_vpc.selected.id]
-  }
+data "aws_subnet" "selected" {
+  id = "subnet-0384a547b2896fb03"
 }
 
-# 3. Obtener el último AMI Amazon Linux 2023
 data "aws_ami" "amazon_linux" {
   most_recent = true
 
@@ -26,11 +17,50 @@ data "aws_ami" "amazon_linux" {
   owners = ["amazon"]
 }
 
-# 4. Crear EC2 usando esos data sources
+resource "aws_security_group" "web_sg" {
+  name        = "${var.environment}-web-sg"
+  description = "Allow SSH, HTTP, HTTPS"
+  vpc_id      = data.aws_vpc.selected.id
+
+  ingress {
+    from_port   = 22
+    to_port     = 22
+    protocol    = "tcp"
+    cidr_blocks = [var.my_ip_cidr]
+  }
+
+  ingress {
+    from_port   = 80
+    to_port     = 80
+    protocol    = "tcp"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+
+  ingress {
+    from_port   = 443
+    to_port     = 443
+    protocol    = "tcp"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+
+  egress {
+    from_port   = 0
+    to_port     = 0
+    protocol    = "-1"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+
+  tags = {
+    Name = "${var.environment}-web-sg"
+  }
+}
+
 resource "aws_instance" "web" {
-  ami           = data.aws_ami.amazon_linux.id
-  instance_type = "t2.micro"
-  subnet_id     = data.aws_subnets.selected.ids[0]
+  ami                         = data.aws_ami.amazon_linux.id
+  instance_type               = "t2.micro"
+  subnet_id                   = data.aws_subnet.selected.id
+  associate_public_ip_address = true
+  vpc_security_group_ids      = [aws_security_group.web_sg.id]
 
   user_data = <<EOF
 #!/bin/bash
